@@ -241,7 +241,7 @@ func Test_IsBootstrapComplete(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			actualComplete, actualErr := IsBootstrapComplete(fakeConfigMapLister, fakeStaticPodClient, fakeEtcdClient)
+			actualComplete, actualErr := IsBootstrapComplete(fakeConfigMapLister, fakeStaticPodClient, fakeEtcdClient, true)
 
 			assert.Equal(t, test.expectComplete, actualComplete)
 			assert.Equal(t, test.expectError, actualErr)

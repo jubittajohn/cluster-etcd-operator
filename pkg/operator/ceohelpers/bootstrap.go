@@ -107,7 +107,7 @@ func CheckSafeToScaleCluster(
 	infraLister configv1listers.InfrastructureLister,
 	etcdClient etcdcli.AllMemberLister) error {
 
-	bootstrapComplete, err := IsBootstrapComplete(configmapLister, staticPodClient, etcdClient)
+	bootstrapComplete, err := IsBootstrapComplete(configmapLister, staticPodClient, etcdClient, true)
 	if err != nil {
 		return fmt.Errorf("CheckSafeToScaleCluster failed to determine bootstrap status: %w", err)
 	}
@@ -151,7 +151,7 @@ func CheckSafeToScaleCluster(
 }
 
 // IsBootstrapComplete returns true if bootstrap has completed.
-func IsBootstrapComplete(configmapLister corev1listers.ConfigMapLister, staticPodClient v1helpers.StaticPodOperatorClient, etcdClient etcdcli.AllMemberLister) (bool, error) {
+func IsBootstrapComplete(configmapLister corev1listers.ConfigMapLister, staticPodClient v1helpers.StaticPodOperatorClient, etcdClient etcdcli.AllMemberLister, shouldRunRevisionStabilityCheck bool) (bool, error) {
 	// do a cheap check to see if the installer has marked
 	// bootstrapping as done by creating the configmap first.
 	if isBootstrapComplete, err := bootstrap.IsBootstrapComplete(configmapLister); !isBootstrapComplete || err != nil {
@@ -159,17 +159,19 @@ func IsBootstrapComplete(configmapLister corev1listers.ConfigMapLister, staticPo
 	}
 
 	// now run check to stability of revisions
-	_, status, _, err := staticPodClient.GetStaticPodOperatorState()
-	if err != nil {
-		return false, fmt.Errorf("failed to get static pod operator state: %w", err)
-	}
-	if status.LatestAvailableRevision == 0 {
-		return false, nil
-	}
-	for _, curr := range status.NodeStatuses {
-		if curr.CurrentRevision != status.LatestAvailableRevision {
-			klog.V(4).Infof("bootstrap considered incomplete because revision %d is still in progress", status.LatestAvailableRevision)
+	if shouldRunRevisionStabilityCheck {
+		_, status, _, err := staticPodClient.GetStaticPodOperatorState()
+		if err != nil {
+			return false, fmt.Errorf("failed to get static pod operator state: %w", err)
+		}
+		if status.LatestAvailableRevision == 0 {
 			return false, nil
+		}
+		for _, curr := range status.NodeStatuses {
+			if curr.CurrentRevision != status.LatestAvailableRevision {
+				klog.V(4).Infof("bootstrap considered incomplete because revision %d is still in progress", status.LatestAvailableRevision)
+				return false, nil
+			}
 		}
 	}
 

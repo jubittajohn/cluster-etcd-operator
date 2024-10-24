@@ -101,7 +101,8 @@ func NewClusterMemberRemovalController(
 
 func (c *clusterMemberRemovalController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
 	// skip reconciling this controller, if bootstrapping is not completed
-	bootstrapComplete, err := ceohelpers.IsBootstrapComplete(c.configMapLister, c.operatorClient, c.etcdClient)
+	// ClusterMemberRemovalController needn't run revision stability check to determine bootstrap completeness
+	bootstrapComplete, err := ceohelpers.IsBootstrapComplete(c.configMapLister, c.operatorClient, c.etcdClient, false)
 	if err != nil {
 		return fmt.Errorf("IsBootstrapComplete failed to determine bootstrap status: %w", err)
 	}
